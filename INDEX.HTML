@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>บัญชีรายรับ-รายจ่าย</title>
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink-soft: #4a4a6a;
+    --ink-faint: #9898b8;
+    --surface: #f7f7fc;
+    --card: #ffffff;
+    --border: #e2e2f0;
+    --income: #00a86b;
+    --income-bg: #e6f7f1;
+    --expense: #e05252;
+    --expense-bg: #fdeaea;
+    --accent: #5c6bc0;
+    --accent-light: #eef0fb;
+    --accent-dark: #3f51b5;
+    --shadow: 0 2px 12px rgba(92,107,192,0.10);
+    --radius: 14px;
+    --radius-sm: 8px;
+    --font: 'Sarabun', 'Noto Sans Thai', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--surface);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    background: var(--ink);
+    color: #fff;
+    padding: 16px 18px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .app-title { font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+  .header-actions { display: flex; gap: 8px; }
+  .btn-icon {
+    background: rgba(255,255,255,.12);
+    border: none;
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: var(--font);
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-icon:hover { background: rgba(255,255,255,.22); }
+  .btn-icon.accent { background: var(--accent); }
+  .btn-icon.accent:hover { background: var(--accent-dark); }
+
+  /* ── Year Tabs ── */
+  .year-strip {
+    background: var(--ink);
+    padding: 0 18px 14px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .year-strip::-webkit-scrollbar { display: none; }
+  .year-chip {
+    border: 1.5px solid rgba(255,255,255,.25);
+    color: rgba(255,255,255,.7);
+    background: transparent;
+    border-radius: 20px;
+    padding: 5px 16px;
+    font-family: var(--font);
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+  .year-chip.active {
+    background: #fff;
+    color: var(--ink);
+    border-color: #fff;
+    font-weight: 700;
+  }
+  .year-chip.add-btn {
+    border-style: dashed;
+    color: rgba(255,255,255,.5);
+    padding: 5px 12px;
+  }
+
+  /* ── Main layout ── */
+  .main { padding: 16px 14px 100px; max-width: 680px; margin: 0 auto; }
+
+  /* ── Summary bar ── */
+  .summary-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .summary-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 12px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .summary-label { font-size: 11px; color: var(--ink-faint); margin-bottom: 4px; }
+  .summary-value { font-size: 16px; font-weight: 800; }
+  .summary-value.income { color: var(--income); }
+  .summary-value.expense { color: var(--expense); }
+  .summary-value.net { color: var(--accent); }
+
+  /* ── Month card ── */
+  .month-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .month-header:hover { background: var(--surface); }
+  .month-title { font-size: 16px; font-weight: 700; }
+  .month-meta { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .month-totals { text-align: right; }
+  .month-income-lbl { font-size: 12px; color: var(--income); font-weight: 600; }
+  .month-expense-lbl { font-size: 12px; color: var(--expense); font-weight: 600; }
+  .chevron { font-size: 13px; color: var(--ink-faint); margin-left: 6px; transition: transform .2s; }
+  .month-card.open .chevron { transform: rotate(180deg); }
+  .month-body { display: none; padding: 14px 14px 16px; }
+  .month-card.open .month-body { display: block; }
+
+  /* ── Set row ── */
+  .set-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    margin-top: 12px;
+  }
+  .set-header:first-child { margin-top: 0; }
+  .set-name-input {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    border: none;
+    border-bottom: 1.5px solid var(--border);
+    background: transparent;
+    width: 160px;
+    padding: 2px 4px;
+    outline: none;
+  }
+  .set-name-input:focus { border-color: var(--accent); }
+  .set-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-faint);
+    font-size: 16px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .set-delete-btn:hover { color: var(--expense); background: var(--expense-bg); }
+
+  /* ── Entry table ── */
+  .entry-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .entry-table th {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-weight: 600;
+    text-align: left;
+    padding: 4px 6px 6px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .entry-row td {
+    padding: 7px 6px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
+  .entry-row:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .badge.income { background: var(--income-bg); color: var(--income); }
+  .badge.expense { background: var(--expense-bg); color: var(--expense); }
+  .amount-cell { font-weight: 700; white-space: nowrap; }
+  .amount-cell.income { color: var(--income); }
+  .amount-cell.expense { color: var(--expense); }
+  .date-cell { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+  .row-del-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-faint);
+    font-size: 15px;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .row-del-btn:hover { color: var(--expense); }
+
+  /* ── Add entry form ── */
+  .add-entry-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-light);
+    border: 1.5px dashed var(--accent);
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+    transition: background .15s;
+  }
+  .add-entry-btn:hover { background: #dde1f8; }
+
+  .add-set-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    color: var(--ink-soft);
+    border-radius: var(--radius-sm);
+    padding: 9px;
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 12px;
+    transition: all .15s;
+  }
+  .add-set-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Set totals ── */
+  .set-totals {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+  }
+  .set-totals span { font-weight: 700; }
+  .set-totals .lbl { color: var(--ink-faint); font-weight: 400; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20,20,40,.5);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 20px 18px 32px;
+    width: 100%;
+    max-width: 480px;
+    animation: slideUp .2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
+  .form-row { margin-bottom: 12px; }
+  .form-label { font-size: 12px; color: var(--ink-faint); font-weight: 600; margin-bottom: 5px; }
+  .form-input, .form-select {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-family: var(--font);
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--surface);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .form-input:focus, .form-select:focus { border-color: var(--accent); background: #fff; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .type-btn {
+    border: 2px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--ink-soft);
+  }
+  .type-btn.income.active { border-color: var(--income); background: var(--income-bg); color: var(--income); }
+  .type-btn.expense.active { border-color: var(--expense); background: var(--expense-bg); color: var(--expense); }
+  .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .btn-cancel {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: var(--font);
+    font-size: 15px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .btn-save {
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #fff;
+    transition: background .15s;
+  }
+  .btn-save:hover { background: var(--accent-dark); }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    right: 18px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(92,107,192,.45);
+    z-index: 150;
+    transition: transform .15s, background .15s;
+    line-height: 1;
+  }
+  .fab:hover { transform: scale(1.08); background: var(--accent-dark); }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--ink-faint);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  .empty-text { font-size: 15px; }
+
+  /* ── Groups modal ── */
+  .group-chip {
+    display: inline-block;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 5px 13px;
+    font-size: 13px;
+    margin: 4px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .group-chip:hover { background: var(--accent); color: #fff; }
+  .group-chip.expense-chip {
+    background: var(--expense-bg);
+    color: var(--expense);
+    border-color: var(--expense);
+  }
+  .group-chip.expense-chip:hover { background: var(--expense); color: #fff; }
+  .group-list { display: flex; flex-wrap: wrap; gap: 0; margin: 10px 0; }
+  .group-manage-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .group-manage-row:last-child { border-bottom: none; }
+  .group-del { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; }
+  .group-del:hover { color: var(--expense); }
+
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all .25s;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Month header date strip ── */
+  .month-dates-row {
+    display: flex;
+    gap: 14px;
+    padding: 10px 16px;
+    background: var(--surface);
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--border);
+  }
+  .date-info strong { color: var(--ink); }
+
+  @media (max-width: 400px) {
+    .summary-bar { grid-template-columns: 1fr 1fr 1fr; }
+    .summary-value { font-size: 14px; }
+    .form-row-2 { grid-template-columns: 1fr; }
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Header -->
+<div class="app-header">
+  <div>
+    <div class="app-title">💰 บัญชีรายรับ-รายจ่าย</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" onclick="openGroupsModal()">🗂 กลุ่ม</button>
+    <button class="btn-icon accent" onclick="exportCSV()">📤 CSV</button>
+  </div>
+</div>
+
+<!-- Year strip -->
+<div class="year-strip" id="yearStrip"></div>
+
+<!-- Main -->
+<div class="main" id="mainContent"></div>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()" title="เพิ่มรายการ">＋</button>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ── Add Entry Modal ── -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">เพิ่มรายการ</div>
+    <div class="type-toggle">
+      <button class="type-btn income active" id="typeBtnIncome" onclick="setType('income')">📈 รายรับ</button>
+      <button class="type-btn expense" id="typeBtnExpense" onclick="setType('expense')">📉 รายจ่าย</button>
+    </div>
+    <div class="form-row">
+      <div class="form-label">เดือน / ปี</div>
+      <div class="form-row-2">
+        <select class="form-select" id="fMonth"></select>
+        <select class="form-select" id="fYear"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">ชุดรายการ (Set)</div>
+      <select class="form-select" id="fSet"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-label">รายการ <button type="button" onclick="openGroupsModal()" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:var(--font);padding:0 0 0 6px;text-decoration:underline">+ จัดการกลุ่ม</button></div>
+      <select class="form-select" id="fDesc">
+        <option value="">— เลือกรายการ —</option>
+      </select>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">จำนวนเงิน (บาท)</div>
+        <input class="form-input" id="fAmount" type="number" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-row">
+        <div class="form-label">หมวดหมู่ <button type="button" onclick="openCatModal()" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:var(--font);padding:0 0 0 6px;text-decoration:underline">+ จัดการ</button></div>
+        <select class="form-select" id="fCategory">
+          <option value="">— เลือกหมวดหมู่ —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">วันเริ่มต้น</div>
+        <input class="form-input" id="fDateStart" type="date">
+      </div>
+      <div class="form-row">
+        <div class="form-label">วันจ่ายจริง</div>
+        <input class="form-input" id="fDatePaid" type="date">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">หมายเหตุ</div>
+      <input class="form-input" id="fNote" placeholder="หมายเหตุ (ถ้ามี)">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('addModal')">ยกเลิก</button>
+      <button class="btn-save" onclick="saveEntry()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Groups Modal ── -->
+<div class="modal-overlay" id="groupsModal">
+  <div class="modal">
+    <div class="modal-title">🗂 จัดการกลุ่มรายการ</div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">ชื่อกลุ่ม</div>
+        <input class="form-input" id="gName" placeholder="เช่น ค่าไฟฟ้า">
+      </div>
+      <div class="form-row">
+        <div class="form-label">ประเภท</div>
+        <select class="form-select" id="gType">
+          <option value="income">รายรับ</option>
+          <option value="expense">รายจ่าย</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-save" style="width:100%;margin-bottom:14px" onclick="addGroup()">+ เพิ่มกลุ่ม</button>
+    <div id="groupListUI"></div>
+    <div class="modal-actions" style="grid-template-columns:1fr">
+      <button class="btn-cancel" onclick="closeGroupsModal()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Category Modal ── -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal">
+    <div class="modal-title">🏷 จัดการหมวดหมู่</div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">ชื่อหมวดหมู่</div>
+        <input class="form-input" id="catName" placeholder="เช่น ค่าสาธารณูปโภค">
+      </div>
+      <div class="form-row">
+        <div class="form-label">ประเภท</div>
+        <select class="form-select" id="catType">
+          <option value="income">📈 รายรับ</option>
+          <option value="expense">📉 รายจ่าย</option>
+          <option value="both">📋 ทั้งสองประเภท</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-save" style="width:100%;margin-bottom:14px" onclick="addCategory()">+ เพิ่มหมวดหมู่</button>
+    <div id="catListUI" style="max-height:220px;overflow-y:auto"></div>
+    <div class="modal-actions" style="grid-template-columns:1fr;margin-top:12px">
+      <button class="btn-cancel" onclick="closeCatModal()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Month Modal ── -->
+<div class="modal-overlay" id="addMonthModal">
+  <div class="modal">
+    <div class="modal-title">เพิ่มเดือน</div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">เดือน</div>
+        <select class="form-select" id="nmMonth"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">ปี</div>
+        <select class="form-select" id="nmYear"></select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">วันเริ่มต้น</div>
+        <input class="form-input" id="nmDateStart" type="date">
+      </div>
+      <div class="form-row">
+        <div class="form-label">วันจ่ายจริง</div>
+        <input class="form-input" id="nmDatePaid" type="date">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('addMonthModal')">ยกเลิก</button>
+      <button class="btn-save" onclick="saveNewMonth()">เพิ่มเดือน</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+let state = {
+  years: [],           // list of year numbers
+  activeYear: null,
+  months: {},          // { "2025-06": { dateStart, datePaid, sets: [{id,name,entries:[]}] } }
+  groups: [],          // { id, name, type }
+  categories: [],      // { id, name, type: 'income'|'expense'|'both' }
+  editingEntry: null,
+};
+
+function loadState() {
+  try {
+    const s = localStorage.getItem('cashflow_v1');
+    if (s) state = { ...state, ...JSON.parse(s) };
+  } catch(e) {}
+  if (!state.years.length) {
+    const y = new Date().getFullYear();
+    state.years = [y];
+    state.activeYear = y;
+  }
+  if (!state.groups) state.groups = [];
+  if (!state.categories) state.categories = [];
+}
+
+function saveState() {
+  localStorage.setItem('cashflow_v1', JSON.stringify(state));
+}
+
+function monthKey(y, m) { return `${y}-${String(m+1).padStart(2,'0')}`; }
+
+// ── Render ──
+function render() {
+  renderYearStrip();
+  renderMain();
+  saveState();
+}
+
+function renderYearStrip() {
+  const strip = document.getElementById('yearStrip');
+  strip.innerHTML = '';
+  state.years.forEach(y => {
+    const chip = document.createElement('button');
+    chip.className = 'year-chip' + (y === state.activeYear ? ' active' : '');
+    chip.textContent = y + ' (พ.ศ. ' + (y + 543) + ')';
+    chip.onclick = () => { state.activeYear = y; render(); };
+    strip.appendChild(chip);
+  });
+  const add = document.createElement('button');
+  add.className = 'year-chip add-btn';
+  add.textContent = '+ เพิ่มปี';
+  add.onclick = addYear;
+  strip.appendChild(add);
+}
+
+function renderMain() {
+  const cont = document.getElementById('mainContent');
+  const y = state.activeYear;
+  if (!y) { cont.innerHTML = ''; return; }
+
+  // Gather months for this year
+  const myMonths = [];
+  for (let m = 0; m < 12; m++) {
+    const k = monthKey(y, m);
+    if (state.months[k]) myMonths.push({ k, m, data: state.months[k] });
+  }
+
+  // Summary totals
+  let totalIncome = 0, totalExpense = 0;
+  myMonths.forEach(({ data }) => {
+    data.sets.forEach(set => {
+      set.entries.forEach(e => {
+        if (e.type === 'income') totalIncome += e.amount;
+        else totalExpense += e.amount;
+      });
+    });
+  });
+
+  let html = `
+  <div class="summary-bar">
+    <div class="summary-card">
+      <div class="summary-label">รายรับรวม</div>
+      <div class="summary-value income">${fmt(totalIncome)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">รายจ่ายรวม</div>
+      <div class="summary-value expense">${fmt(totalExpense)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">คงเหลือ</div>
+      <div class="summary-value net">${fmt(totalIncome - totalExpense)}</div>
+    </div>
+  </div>`;
+
+  if (!myMonths.length) {
+    html += `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">ยังไม่มีเดือนในปีนี้<br>กดปุ่มด้านล่างเพื่อเพิ่มเดือน</div></div>`;
+  } else {
+    myMonths.forEach(({ k, m, data }) => {
+      const sets = data.sets || [];
+      let mIncome = 0, mExpense = 0;
+      sets.forEach(s => s.entries.forEach(e => {
+        if (e.type === 'income') mIncome += e.amount;
+        else mExpense += e.amount;
+      }));
+      html += `
+      <div class="month-card open" id="mc-${k}">
+        <div class="month-header" onclick="toggleMonth('${k}')">
+          <div>
+            <div class="month-title">${MONTHS_TH[m]} ${y} (${y+543})</div>
+            <div class="month-meta">${sets.length} ชุดรายการ · ${sets.reduce((a,s)=>a+s.entries.length,0)} รายการ</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <div class="month-totals">
+              <div class="month-income-lbl">+${fmt(mIncome)}</div>
+              <div class="month-expense-lbl">-${fmt(mExpense)}</div>
+            </div>
+            <span class="chevron">▼</span>
+          </div>
+        </div>
+        <div class="month-dates-row">
+          <div class="date-info">📅 เริ่มต้น: <strong>${data.dateStart || '-'}</strong></div>
+          <div class="date-info">💸 จ่ายจริง: <strong>${data.datePaid || '-'}</strong></div>
+          <button class="row-del-btn" style="margin-left:auto" onclick="editMonthDates('${k}')" title="แก้ไขวันที่">✏️</button>
+          <button class="row-del-btn" style="color:var(--expense)" onclick="deleteMonth('${k}')" title="ลบเดือน">🗑</button>
+        </div>
+        <div class="month-body" id="mb-${k}">
+          ${renderSets(k, sets)}
+          <button class="add-set-btn" onclick="addSet('${k}')">＋ เพิ่มชุดรายการ (Set)</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Add month button
+  html += `<button class="add-set-btn" style="margin-top:4px;border-color:var(--accent);color:var(--accent)" onclick="openAddMonthModal()">＋ เพิ่มเดือน</button>`;
+
+  cont.innerHTML = html;
+}
+
+function renderSets(monthKey, sets) {
+  if (!sets.length) return '<div style="color:var(--ink-faint);font-size:13px;padding:8px 4px">ยังไม่มีชุดรายการ</div>';
+  return sets.map((set, si) => {
+    let sIncome = 0, sExpense = 0;
+    const rows = set.entries.map((e, ei) => {
+      if (e.type === 'income') sIncome += e.amount;
+      else sExpense += e.amount;
+      return `<tr class="entry-row">
+        <td><span class="badge ${e.type}">${e.type==='income'?'รับ':'จ่าย'}</span></td>
+        <td class="date-cell">${e.datePaid || e.dateStart || '-'}</td>
+        <td>${esc(e.desc)}</td>
+        <td>${esc(e.category||'-')}</td>
+        <td class="amount-cell ${e.type}">${e.type==='income'?'+':'-'}${fmt(e.amount)}</td>
+        <td style="white-space:nowrap;font-size:12px;color:var(--ink-faint)">${esc(e.note||'')}</td>
+        <td><button class="row-del-btn" onclick="deleteEntry('${monthKey}',${si},${ei})">✕</button></td>
+      </tr>`;
+    }).join('');
+
+    return `
+    <div class="set-wrapper">
+      <div class="set-header">
+        <div style="display:flex;align-items:center;gap:6px;flex:1">
+          <input class="set-name-input" value="${esc(set.name)}" oninput="renameSet('${monthKey}',${si},this.value)" placeholder="ชื่อชุด..." title="คลิกเพื่อแก้ไขชื่อชุดรายการ">
+          <span style="font-size:12px;color:var(--ink-faint)" title="แก้ไขชื่อได้">✏️</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="row-del-btn" onclick="openAddModal('${monthKey}',${si})" style="color:var(--accent);font-size:13px">＋ เพิ่มรายการ</button>
+          <button class="set-delete-btn" onclick="deleteSet('${monthKey}',${si})">🗑</button>
+        </div>
+      </div>
+      ${set.entries.length ? `
+      <div style="overflow-x:auto">
+      <table class="entry-table">
+        <thead>
+          <tr>
+            <th>ประเภท</th><th>วันที่</th><th>รายการ</th><th>หมวดหมู่</th><th>จำนวนเงิน</th><th>หมายเหตุ</th><th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      </div>` : '<div style="color:var(--ink-faint);font-size:13px;padding:6px 4px">ยังไม่มีรายการในชุดนี้</div>'}
+      <div class="set-totals">
+        <span class="lbl">รายรับ:</span> <span style="color:var(--income)">+${fmt(sIncome)}</span>
+        <span class="lbl">รายจ่าย:</span> <span style="color:var(--expense)">-${fmt(sExpense)}</span>
+        <span class="lbl">คงเหลือ:</span> <span style="color:var(--accent)">${fmt(sIncome-sExpense)}</span>
+      </div>
+    </div>`;
+  }).join('<hr style="border:none;border-top:1.5px dashed var(--border);margin:12px 0">');
+}
+
+// ── Helpers ──
+function fmt(n) {
+  return Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ── Actions ──
+function toggleMonth(k) {
+  const card = document.getElementById('mc-' + k);
+  card.classList.toggle('open');
+}
+
+function addYear() {
+  const maxY = Math.max(...state.years);
+  state.years.push(maxY + 1);
+  state.activeYear = maxY + 1;
+  render();
+}
+
+function openAddMonthModal() {
+  const y = state.activeYear;
+  const nm = document.getElementById('nmMonth');
+  const ny = document.getElementById('nmYear');
+  nm.innerHTML = MONTHS_TH.map((n,i) => `<option value="${i}">${n}</option>`).join('');
+  ny.innerHTML = state.years.map(yr => `<option value="${yr}" ${yr===y?'selected':''}>${yr} (พ.ศ. ${yr+543})</option>`).join('');
+  nm.value = new Date().getMonth();
+  document.getElementById('addMonthModal').classList.add('open');
+}
+
+function saveNewMonth() {
+  const m = parseInt(document.getElementById('nmMonth').value);
+  const y = parseInt(document.getElementById('nmYear').value);
+  const k = monthKey(y, m);
+  if (state.months[k]) { showToast('เดือนนี้มีอยู่แล้ว'); return; }
+  state.months[k] = {
+    dateStart: document.getElementById('nmDateStart').value,
+    datePaid: document.getElementById('nmDatePaid').value,
+    sets: [{ id: uid(), name: 'ชุดที่ 1', entries: [] }]
+  };
+  if (!state.years.includes(y)) { state.years.push(y); state.activeYear = y; }
+  closeModal('addMonthModal');
+  render();
+  showToast('เพิ่มเดือนสำเร็จ ✓');
+}
+
+function deleteMonth(k) {
+  if (!confirm('ลบเดือนนี้และข้อมูลทั้งหมด?')) return;
+  delete state.months[k];
+  render();
+}
+
+function editMonthDates(k) {
+  const data = state.months[k];
+  const ds = prompt('วันเริ่มต้น (YYYY-MM-DD):', data.dateStart || '');
+  if (ds === null) return;
+  const dp = prompt('วันจ่ายจริง (YYYY-MM-DD):', data.datePaid || '');
+  if (dp === null) return;
+  data.dateStart = ds;
+  data.datePaid = dp;
+  render();
+}
+
+function addSet(k) {
+  const n = state.months[k].sets.length + 1;
+  state.months[k].sets.push({ id: uid(), name: `ชุดที่ ${n}`, entries: [] });
+  render();
+}
+
+function deleteSet(k, si) {
+  if (!confirm('ลบชุดรายการนี้?')) return;
+  state.months[k].sets.splice(si, 1);
+  render();
+}
+
+function renameSet(k, si, val) {
+  state.months[k].sets[si].name = val;
+  saveState();
+}
+
+function deleteEntry(k, si, ei) {
+  state.months[k].sets[si].entries.splice(ei, 1);
+  render();
+}
+
+// ── Entry Modal ──
+let _targetMonth = null, _targetSet = null, _entryType = 'income';
+
+function openAddModal(month, setIdx) {
+  _targetMonth = month || null;
+  _targetSet = setIdx !== undefined ? setIdx : null;
+  _entryType = 'income';
+  setType('income');
+
+  // Populate month/year selects
+  const fm = document.getElementById('fMonth');
+  const fy = document.getElementById('fYear');
+  fm.innerHTML = MONTHS_TH.map((n,i) => `<option value="${i}">${n}</option>`).join('');
+  fy.innerHTML = state.years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+  if (month) {
+    const [y, m] = month.split('-');
+    fy.value = y;
+    fm.value = parseInt(m) - 1;
+  } else {
+    fy.value = state.activeYear;
+    fm.value = new Date().getMonth();
+  }
+
+  updateSetSelect();
+  fm.onchange = fy.onchange = updateSetSelect;
+  if (_targetSet !== null) {
+    document.getElementById('fSet').value = _targetSet;
+  }
+
+  updateCategorySelect();
+  updateGroupSelect();
+
+  // Clear fields
+  document.getElementById('fDesc').value = '';
+  document.getElementById('fAmount').value = '';
+  document.getElementById('fCategory').value = '';
+  document.getElementById('fNote').value = '';
+  document.getElementById('fDateStart').value = '';
+  document.getElementById('fDatePaid').value = '';
+  document.getElementById('modalTitle').textContent = 'เพิ่มรายการ';
+  document.getElementById('addModal').classList.add('open');
+}
+
+function updateSetSelect() {
+  const y = parseInt(document.getElementById('fYear').value);
+  const m = parseInt(document.getElementById('fMonth').value);
+  const k = monthKey(y, m);
+  const sel = document.getElementById('fSet');
+  const mo = state.months[k];
+  if (!mo) {
+    sel.innerHTML = '<option value="__new__">+ สร้างชุดใหม่อัตโนมัติ</option>';
+  } else {
+    sel.innerHTML = mo.sets.map((s,i) => `<option value="${i}">${s.name}</option>`).join('') + '<option value="__new__">+ เพิ่มชุดใหม่</option>';
+  }
+}
+
+function updateCategorySelect() {
+  const sel = document.getElementById('fCategory');
+  const filtered = state.categories.filter(c => c.type === _entryType || c.type === 'both');
+  sel.innerHTML = '<option value="">— เลือกหมวดหมู่ —</option>' +
+    filtered.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+}
+
+function updateGroupSelect() {
+  const sel = document.getElementById('fDesc');
+  const filtered = state.groups.filter(g => g.type === _entryType);
+  if (!filtered.length) {
+    sel.innerHTML = '<option value="">— ยังไม่มีกลุ่มรายการ (กด + จัดการกลุ่ม) —</option>';
+  } else {
+    sel.innerHTML = '<option value="">— เลือกรายการ —</option>' +
+      filtered.map(g => `<option value="${esc(g.name)}">${esc(g.name)}</option>`).join('');
+  }
+}
+
+// ── Category Modal ──
+function openCatModal() {
+  document.getElementById('catName').value = '';
+  document.getElementById('catType').value = _entryType || 'both';
+  renderCatListUI();
+  document.getElementById('catModal').classList.add('open');
+}
+
+function closeCatModal() {
+  document.getElementById('catModal').classList.remove('open');
+  updateCategorySelect();
+}
+
+function renderCatListUI() {
+  const cont = document.getElementById('catListUI');
+  if (!state.categories.length) {
+    cont.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;padding:8px 0">ยังไม่มีหมวดหมู่ กดเพิ่มด้านบนได้เลย</div>';
+    return;
+  }
+  const typeLabel = { income: '📈 รับ', expense: '📉 จ่าย', both: '📋 ทั้งคู่' };
+  const typeBadge = { income: 'badge income', expense: 'badge expense', both: 'badge' };
+  cont.innerHTML = state.categories.map((c, i) => `
+    <div class="group-manage-row">
+      <span class="${typeBadge[c.type]}" style="${c.type==='both'?'background:var(--accent-light);color:var(--accent);':''}">${typeLabel[c.type]}</span>
+      <span style="flex:1;padding:0 10px;font-size:14px">${esc(c.name)}</span>
+      <button class="group-del" onclick="deleteCategory(${i})">✕</button>
+    </div>`).join('');
+}
+
+function addCategory() {
+  const name = document.getElementById('catName').value.trim();
+  const type = document.getElementById('catType').value;
+  if (!name) { showToast('กรุณาใส่ชื่อหมวดหมู่'); return; }
+  if (state.categories.find(c => c.name === name)) { showToast('มีหมวดหมู่นี้อยู่แล้ว'); return; }
+  state.categories.push({ id: uid(), name, type });
+  document.getElementById('catName').value = '';
+  saveState();
+  renderCatListUI();
+  showToast('เพิ่มหมวดหมู่สำเร็จ ✓');
+}
+
+function deleteCategory(i) {
+  state.categories.splice(i, 1);
+  saveState();
+  renderCatListUI();
+}
+
+function setType(t) {
+  _entryType = t;
+  document.getElementById('typeBtnIncome').classList.toggle('active', t === 'income');
+  document.getElementById('typeBtnExpense').classList.toggle('active', t === 'expense');
+  updateCategorySelect();
+  updateGroupSelect();
+}
+
+function saveEntry() {
+  const y = parseInt(document.getElementById('fYear').value);
+  const m = parseInt(document.getElementById('fMonth').value);
+  const k = monthKey(y, m);
+  const desc = document.getElementById('fDesc').value;
+  const amount = parseFloat(document.getElementById('fAmount').value);
+  if (!desc) { showToast('กรุณาเลือกรายการ'); return; }
+  if (isNaN(amount) || amount <= 0) { showToast('กรุณาใส่จำนวนเงินที่ถูกต้อง'); return; }
+
+  // Ensure month exists
+  if (!state.months[k]) {
+    state.months[k] = { dateStart: '', datePaid: '', sets: [{ id: uid(), name: 'ชุดที่ 1', entries: [] }] };
+    if (!state.years.includes(y)) state.years.push(y);
+  }
+
+  const setVal = document.getElementById('fSet').value;
+  let si;
+  if (setVal === '__new__') {
+    state.months[k].sets.push({ id: uid(), name: `ชุดที่ ${state.months[k].sets.length + 1}`, entries: [] });
+    si = state.months[k].sets.length - 1;
+  } else {
+    si = parseInt(setVal);
+  }
+
+  state.months[k].sets[si].entries.push({
+    id: uid(),
+    type: _entryType,
+    desc,
+    amount,
+    category: document.getElementById('fCategory').value,
+    dateStart: document.getElementById('fDateStart').value,
+    datePaid: document.getElementById('fDatePaid').value,
+    note: document.getElementById('fNote').value.trim(),
+  });
+
+  closeModal('addModal');
+  render();
+  showToast('บันทึกรายการสำเร็จ ✓');
+}
+
+// ── Groups ──
+function openGroupsModal() {
+  renderGroupListUI();
+  document.getElementById('groupsModal').classList.add('open');
+}
+
+function closeGroupsModal() {
+  document.getElementById('groupsModal').classList.remove('open');
+  updateGroupSelect();
+}
+
+function renderGroupListUI() {
+  const cont = document.getElementById('groupListUI');
+  if (!state.groups.length) { cont.innerHTML = '<div style="color:var(--ink-faint);font-size:13px">ยังไม่มีกลุ่ม</div>'; return; }
+  cont.innerHTML = state.groups.map((g, i) => `
+    <div class="group-manage-row">
+      <span class="${g.type==='income'?'badge income':'badge expense'}">${g.type==='income'?'รับ':'จ่าย'}</span>
+      <span style="flex:1;padding:0 10px">${esc(g.name)}</span>
+      <button class="group-del" onclick="deleteGroup(${i})">✕</button>
+    </div>`).join('');
+}
+
+function addGroup() {
+  const name = document.getElementById('gName').value.trim();
+  const type = document.getElementById('gType').value;
+  if (!name) { showToast('กรุณาใส่ชื่อกลุ่ม'); return; }
+  state.groups.push({ id: uid(), name, type });
+  document.getElementById('gName').value = '';
+  saveState();
+  renderGroupListUI();
+  showToast('เพิ่มกลุ่มสำเร็จ ✓');
+}
+
+function deleteGroup(i) {
+  state.groups.splice(i, 1);
+  saveState();
+  renderGroupListUI();
+}
+
+// ── CSV Export ──
+function exportCSV() {
+  const y = state.activeYear;
+  const rows = [['ปี','เดือน','ชุดรายการ','ประเภท','รายการ','หมวดหมู่','จำนวนเงิน','วันเริ่มต้น','วันจ่ายจริง','หมายเหตุ']];
+
+  for (let m = 0; m < 12; m++) {
+    const k = monthKey(y, m);
+    const mo = state.months[k];
+    if (!mo) continue;
+    mo.sets.forEach(set => {
+      set.entries.forEach(e => {
+        rows.push([
+          y, MONTHS_TH[m], set.name,
+          e.type === 'income' ? 'รายรับ' : 'รายจ่าย',
+          e.desc, e.category||'', e.amount,
+          e.dateStart||'', e.datePaid||'', e.note||''
+        ]);
+      });
+    });
+  }
+
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cashflow_${y}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('ส่งออก CSV สำเร็จ ✓ — แชร์ไฟล์ผ่าน LINE ได้เลย');
+}
+
+// ── Utils ──
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => {
+    if (e.target !== o) return;
+    if (o.id === 'catModal') closeCatModal();
+    else if (o.id === 'groupsModal') closeGroupsModal();
+    else o.classList.remove('open');
+  });
+});
+
+// ── Init ──
+loadState();
+render();
+</script>
+</body>
+</html>
